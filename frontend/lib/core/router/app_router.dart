@@ -56,7 +56,8 @@ final GoRouter appRouter = GoRouter(
         final mode = state.pathParameters['mode'] ?? 'classic';
         final cat = state.uri.queryParameters['cat'] ?? 'Technology';
         final duration = int.tryParse(state.uri.queryParameters['duration'] ?? '') ?? 60;
-        return GamePage(mode: mode, category: cat, timerDuration: duration);
+        final level = int.tryParse(state.uri.queryParameters['level'] ?? '');
+        return GamePage(mode: mode, category: cat, timerDuration: duration, level: level);
       },
     ),
     GoRoute(

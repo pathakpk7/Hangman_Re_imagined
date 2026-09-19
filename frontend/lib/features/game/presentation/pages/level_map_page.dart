@@ -110,7 +110,7 @@ class LevelMapPage extends ConsumerWidget {
                                         level: levelNum,
                                         userId: ref.read(authProvider).userId,
                                       );
-                                  context.push('/game/classic');
+                                  context.push('/game/classic?level=$levelNum');
                                 }
                               : null,
                           child: Center(

@@ -15,12 +15,14 @@ class GamePage extends ConsumerStatefulWidget {
   final String mode;
   final String category;
   final int timerDuration;
+  final int? level;
 
   const GamePage({
     super.key,
     this.mode = 'classic',
     this.category = 'Technology',
     this.timerDuration = 60,
+    this.level,
   });
 
   @override
@@ -39,12 +41,16 @@ class _GamePageState extends ConsumerState<GamePage> {
     Future.microtask(() {
       final auth = ref.read(authProvider);
       final game = ref.read(gameProvider);
-      ref.read(gameProvider.notifier).startNewGame(
-            mode: widget.mode,
-            level: widget.mode == 'classic' ? game.level : 1,
-            category: widget.category,
-            userId: auth.userId,
-          );
+      final targetLevel = widget.level ?? (widget.mode == 'classic' ? (game.level > 0 ? game.level : 1) : 1);
+
+      if (game.gameId.isEmpty || game.mode != widget.mode || (widget.mode == 'classic' && game.level != targetLevel)) {
+        ref.read(gameProvider.notifier).startNewGame(
+              mode: widget.mode,
+              level: targetLevel,
+              category: widget.category,
+              userId: auth.userId,
+            );
+      }
 
       if (widget.mode == 'timed') {
         _startTimer();

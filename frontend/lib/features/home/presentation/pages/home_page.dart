@@ -170,8 +170,9 @@ class HomePage extends ConsumerWidget {
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
                   onTap: () {
-                    ref.read(gameProvider.notifier).startNewGame(mode: 'classic', level: gameState.level, userId: authState.userId);
-                    context.push('/game/classic');
+                    final targetLvl = gameState.level > 0 ? gameState.level : 1;
+                    ref.read(gameProvider.notifier).startNewGame(mode: 'classic', level: targetLvl, userId: authState.userId);
+                    context.push('/game/classic?level=$targetLvl');
                   },
                   child: Container(
                     width: double.infinity,

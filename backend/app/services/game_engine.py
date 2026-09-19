@@ -235,6 +235,7 @@ class GameSession:
 class GameEngine:
     def __init__(self):
         self.active_sessions: Dict[str, GameSession] = {}
+        self.session_played_words: Dict[str, set] = {}
 
     def calculate_heart_regen(self, user_id: str, db: Session) -> tuple[int, int]:
         heart_state = db.query(DBUserHeartState).filter(DBUserHeartState.user_id == user_id).first()
@@ -262,21 +263,34 @@ class GameEngine:
 
     def create_game(self, mode: str, level: int = 1, category: str = "General", user_id: Optional[str] = None, db: Optional[Session] = None) -> GameSession:
         game_id = str(uuid.uuid4())
-        exclude_words: List[str] = []
+        anon_key = user_id or "anon_guest"
+
+        if anon_key not in self.session_played_words:
+            self.session_played_words[anon_key] = set()
+
+        played_set = set(self.session_played_words[anon_key])
 
         if db and user_id:
             try:
                 hist_words = db.query(DBGameHistory.word).filter(DBGameHistory.user_id == user_id).all()
                 codex_words = db.query(DBUserCodex.word).filter(DBUserCodex.user_id == user_id).all()
-                played_set = set([r[0].lower() for r in hist_words if r[0]] + [r[0].lower() for r in codex_words if r[0]])
-                exclude_words = list(played_set)
+                for r in hist_words:
+                    if r[0]: played_set.add(r[0].lower())
+                for r in codex_words:
+                    if r[0]: played_set.add(r[0].lower())
             except Exception:
                 pass
+
+        exclude_words = list(played_set)
 
         if mode == "classic":
             word_data = level_service.select_word_for_level(level=level, category=category, exclude_words=exclude_words)
         else:
             word_data = word_service.select_word(difficulty=2, category=category, exclude_words=exclude_words)
+
+        # Record selected word in memory so it cannot repeat for this user/session
+        if word_data and 'word' in word_data:
+            self.session_played_words[anon_key].add(word_data['word'].lower())
 
         session = GameSession(game_id=game_id, mode=mode, word_data=word_data, level=level, user_id=user_id)
         
