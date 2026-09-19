@@ -1,0 +1,26 @@
+name: hangman_reimagined
+description: "Hangman Reimagined - A modern, polished, strategic word discovery game."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.0.0
+  dio: ^5.4.3+1
+  flutter_animate: ^4.5.0
+  google_fonts: ^6.2.1
+  shared_preferences: ^2.2.3
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,27 @@
+# Environment variables
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+.pytest_cache/
+
+# Databases & local state
+hangman_game.db
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+
+# Flutter / Dart
+frontend/.dart_tool/
+frontend/.pub/
+frontend/build/
