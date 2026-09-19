@@ -20,6 +20,11 @@ class GameState {
   final String? clue1Definition;
   final String? clue2Sentence;
   final String? clue3Context;
+  final String? strikingClue;
+  final bool lifelineUnlocked;
+  final int wordLifelines;
+  final bool lifelineUsed;
+  final bool lifelineUnlockedMoment;
   final int hintStep;
   final Map<String, dynamic>? knowledgeCard;
   final Map<String, dynamic>? wittyLossPopup;
@@ -44,6 +49,11 @@ class GameState {
     this.clue1Definition,
     this.clue2Sentence,
     this.clue3Context,
+    this.strikingClue,
+    this.lifelineUnlocked = false,
+    this.wordLifelines = 2,
+    this.lifelineUsed = false,
+    this.lifelineUnlockedMoment = false,
     this.hintStep = 0,
     this.knowledgeCard,
     this.wittyLossPopup,
@@ -69,6 +79,11 @@ class GameState {
     String? clue1Definition,
     String? clue2Sentence,
     String? clue3Context,
+    String? strikingClue,
+    bool? lifelineUnlocked,
+    int? wordLifelines,
+    bool? lifelineUsed,
+    bool? lifelineUnlockedMoment,
     int? hintStep,
     Map<String, dynamic>? knowledgeCard,
     Map<String, dynamic>? wittyLossPopup,
@@ -93,6 +108,11 @@ class GameState {
       clue1Definition: clue1Definition ?? this.clue1Definition,
       clue2Sentence: clue2Sentence ?? this.clue2Sentence,
       clue3Context: clue3Context ?? this.clue3Context,
+      strikingClue: strikingClue ?? this.strikingClue,
+      lifelineUnlocked: lifelineUnlocked ?? this.lifelineUnlocked,
+      wordLifelines: wordLifelines ?? this.wordLifelines,
+      lifelineUsed: lifelineUsed ?? this.lifelineUsed,
+      lifelineUnlockedMoment: lifelineUnlockedMoment ?? this.lifelineUnlockedMoment,
       hintStep: hintStep ?? this.hintStep,
       knowledgeCard: knowledgeCard ?? this.knowledgeCard,
       wittyLossPopup: wittyLossPopup ?? this.wittyLossPopup,
@@ -143,6 +163,11 @@ class GameNotifier extends StateNotifier<GameState> {
         clue1Definition: res['clue1_definition'],
         clue2Sentence: res['clue2_sentence'],
         clue3Context: res['clue3_context'],
+        strikingClue: res['striking_clue'],
+        lifelineUnlocked: res['lifeline_unlocked'] ?? ((res['level'] ?? level) >= 5),
+        wordLifelines: res['word_lifelines'] ?? 2,
+        lifelineUsed: res['lifeline_used'] ?? false,
+        lifelineUnlockedMoment: res['lifeline_unlocked_moment'] ?? false,
         hintStep: 0,
         knowledgeCard: res['knowledge_card'],
         wittyLossPopup: res['witty_loss_popup'],
@@ -150,6 +175,23 @@ class GameNotifier extends StateNotifier<GameState> {
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: "Failed to start game: $e");
+    }
+  }
+
+  Future<void> useLifeline(String option, {String? userId}) async {
+    if (state.lifelineUsed || state.status != 'in_progress') return;
+    try {
+      final res = await _apiClient.useLifeline(gameId: state.gameId, option: option, userId: userId);
+      final gState = res['game_state'] ?? {};
+      state = state.copyWith(
+        maskedWord: List<String>.from(gState['masked_word'] ?? state.maskedWord),
+        strikingClue: res['striking_clue'] ?? gState['striking_clue'] ?? state.strikingClue,
+        wordLifelines: res['word_lifelines_remaining'] ?? gState['word_lifelines'] ?? state.wordLifelines,
+        lifelineUsed: true,
+        status: gState['status'] ?? state.status,
+      );
+    } catch (e) {
+      state = state.copyWith(errorMessage: "Failed to activate Word Lifeline: $e");
     }
   }
 

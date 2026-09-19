@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../game/presentation/providers/game_provider.dart';
 import '../../../game/presentation/widgets/hangman_canvas.dart';
 import '../../../game/presentation/widgets/keyboard_widget.dart';

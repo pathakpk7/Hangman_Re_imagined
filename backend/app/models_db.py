@@ -11,6 +11,7 @@ class DBUser(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    word_lifelines = Column(Integer, default=2)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     heart_state = relationship("DBUserHeartState", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -70,6 +71,8 @@ class DBGameHistory(Base):
     mistakes = Column(Integer, default=0)
     hearts_remaining = Column(Integer, default=5)
     hints_used = Column(Integer, default=0)
+    word_lifelines_used = Column(Integer, default=0)
+    lifeline_option_used = Column(String, nullable=True)
     duration_seconds = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

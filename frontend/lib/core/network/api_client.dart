@@ -105,6 +105,19 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> useLifeline({required String gameId, required String option, String? userId}) async {
+    try {
+      final response = await _dio.post('/game/lifeline', data: {
+        'game_id': gameId,
+        'option': option,
+        'user_id': userId,
+      }, options: _getOptions());
+      return response.data;
+    } catch (e) {
+      throw Exception("Failed to activate Word Lifeline: $e");
+    }
+  }
+
   Future<Map<String, dynamic>> getDailyChallenge({String? userId}) async {
     try {
       final response = await _dio.get('/game/daily', queryParameters: {'user_id': userId ?? 'anon'});

@@ -56,6 +56,8 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         highest_classic_level=h_level,
         total_xp=total_xp,
         consecutive_losses=cons_losses,
+        word_lifelines=user.word_lifelines or 2,
+        lifeline_unlocked=(c_level >= 5),
         mode_stats=mode_stats_dict,
         category_stats=category_stats_dict
     )

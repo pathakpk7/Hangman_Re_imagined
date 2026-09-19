@@ -29,3 +29,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    if DATABASE_URL.startswith("sqlite"):
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            users_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+            if users_cols and "word_lifelines" not in users_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN word_lifelines INTEGER DEFAULT 2"))
+                conn.commit()
+
+            gh_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(game_history)")).fetchall()]
+            if gh_cols:
+                if "word_lifelines_used" not in gh_cols:
+                    conn.execute(text("ALTER TABLE game_history ADD COLUMN word_lifelines_used INTEGER DEFAULT 0"))
+                    conn.commit()
+                if "lifeline_option_used" not in gh_cols:
+                    conn.execute(text("ALTER TABLE game_history ADD COLUMN lifeline_option_used VARCHAR(50)"))
+                    conn.commit()

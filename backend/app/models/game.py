@@ -40,6 +40,11 @@ class HintRequest(BaseModel):
     game_id: str
     hint_step: Optional[int] = Field(default=1, ge=1, le=3)
 
+class LifelineRequest(BaseModel):
+    game_id: str
+    option: str = Field(..., description="reveal_letter or striking_clue")
+    user_id: Optional[str] = None
+
 class KnowledgeCard(BaseModel):
     word: str
     definition: str
@@ -70,6 +75,11 @@ class GameStateResponse(BaseModel):
     clue1_definition: Optional[str] = None  # Meaning / Definition
     clue2_sentence: Optional[str] = None    # Context sentence (masked)
     clue3_context: Optional[str] = None     # Category / POS / Structure context
+    striking_clue: Optional[str] = None     # Option B Lifeline Striking Clue
+    lifeline_unlocked: bool = False         # True if level >= 5
+    word_lifelines: int = 2                 # Inventory count
+    lifeline_used: bool = False             # Whether lifeline was activated in current round
+    lifeline_unlocked_moment: bool = False  # Triggers unlock popup on level 5
     knowledge_card: Optional[KnowledgeCard] = None
     witty_loss_popup: Optional[WittyLossPopupPayload] = None
     heart_regen_seconds_left: int = 0
@@ -78,6 +88,15 @@ class HintResponse(BaseModel):
     game_id: str
     hint_step: int
     clue_text: str
+    game_state: GameStateResponse
+
+class LifelineResponse(BaseModel):
+    game_id: str
+    option: str
+    revealed_letter: Optional[str] = None
+    revealed_position: Optional[int] = None
+    striking_clue: Optional[str] = None
+    word_lifelines_remaining: int
     game_state: GameStateResponse
 
 class DailyChallengeResponse(BaseModel):
@@ -105,6 +124,8 @@ class RealUserProfile(BaseModel):
     highest_classic_level: int
     total_xp: int
     consecutive_losses: int
+    word_lifelines: int = 2
+    lifeline_unlocked: bool = False
     mode_stats: Dict[str, ModeStatItem]
     category_stats: Dict[str, ModeStatItem]
 

@@ -8,6 +8,7 @@ import '../widgets/hangman_canvas.dart';
 import '../widgets/word_dna_card.dart';
 import '../widgets/keyboard_widget.dart';
 import '../widgets/witty_loss_dialog.dart';
+import '../widgets/lifeline_modal.dart';
 import '../../../dictionary/presentation/widgets/knowledge_card.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -33,6 +34,7 @@ class _GamePageState extends ConsumerState<GamePage> {
   bool _wittyPopupShown = false;
   Timer? _timedModeTimer;
   late int _secondsRemaining;
+  int? _expandedClueStep = 1;
 
   @override
   void initState() {
@@ -210,7 +212,7 @@ class _GamePageState extends ConsumerState<GamePage> {
                                   ),
                                 ),
 
-                              // Status Bar (Score, Combo)
+                              // Status Bar (Score, Combo, Word Lifeline)
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
                                 child: Row(
@@ -225,6 +227,56 @@ class _GamePageState extends ConsumerState<GamePage> {
                                         "${gameState.combo}x COMBO",
                                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD5A84B)),
                                       ).animate().scale(),
+                                    
+                                    // Word Lifeline Trigger Button
+                                    InkWell(
+                                      onTap: gameState.status == 'in_progress' ? () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => LifelineModal(
+                                            level: gameState.level,
+                                            inventory: gameState.wordLifelines,
+                                            onSelectOption: (option) {
+                                              ref.read(gameProvider.notifier).useLifeline(option);
+                                            },
+                                          ),
+                                        );
+                                      } : null,
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF181816),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: gameState.lifelineUnlocked
+                                                ? const Color(0xFFD5A84B)
+                                                : const Color(0xFF4A4A44),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              gameState.lifelineUnlocked ? Icons.flash_on : Icons.lock_outline,
+                                              size: 14,
+                                              color: gameState.lifelineUnlocked ? const Color(0xFFD5A84B) : const Color(0xFFA9A396),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              gameState.lifelineUnlocked
+                                                  ? "LIFELINE (${gameState.wordLifelines})"
+                                                  : "LIFELINE (LVL 5)",
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: gameState.lifelineUnlocked ? const Color(0xFFD5A84B) : const Color(0xFFA9A396),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -250,43 +302,117 @@ class _GamePageState extends ConsumerState<GamePage> {
                                     ),
                                     const SizedBox(height: 6),
 
-                                    // Clue 1: Definition / Meaning
+                                    // Clue 1: Profile & Synonyms
                                     _ClueTile(
                                       stepNumber: 1,
-                                      label: "Clue 1 — Definition & Meaning",
+                                      label: "Clue 1 — Word Profile, Origin & Synonyms",
                                       content: gameState.clue1Definition,
-                                      icon: Icons.lightbulb_outline,
+                                      icon: Icons.auto_awesome_outlined,
+                                      isExpanded: _expandedClueStep == 1,
                                       onUnlock: () {
+                                        setState(() {
+                                          _expandedClueStep = 1;
+                                        });
                                         ref.read(gameProvider.notifier).requestHint(1);
                                       },
-                                    ),
-                                    const SizedBox(height: 6),
-
-                                    // Clue 2: Context Sentence
-                                    _ClueTile(
-                                      stepNumber: 2,
-                                      label: "Clue 2 — Context Sentence",
-                                      content: gameState.clue2Sentence,
-                                      icon: Icons.short_text,
-                                      onUnlock: () {
-                                        ref.read(gameProvider.notifier).requestHint(2);
+                                      onToggleExpand: () {
+                                        setState(() {
+                                          _expandedClueStep = _expandedClueStep == 1 ? null : 1;
+                                        });
                                       },
                                     ),
                                     const SizedBox(height: 6),
 
-                                    // Clue 3: Semantic Structure & Category
+                                    // Clue 2: Domain Usage Context
+                                    _ClueTile(
+                                      stepNumber: 2,
+                                      label: "Clue 2 — Where & How It Is Used",
+                                      content: gameState.clue2Sentence,
+                                      icon: Icons.travel_explore_outlined,
+                                      isExpanded: _expandedClueStep == 2,
+                                      onUnlock: () {
+                                        setState(() {
+                                          _expandedClueStep = 2;
+                                        });
+                                        ref.read(gameProvider.notifier).requestHint(2);
+                                      },
+                                      onToggleExpand: () {
+                                        setState(() {
+                                          _expandedClueStep = _expandedClueStep == 2 ? null : 2;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 6),
+
+                                    // Clue 3: Natural Example Sentence
                                     _ClueTile(
                                       stepNumber: 3,
-                                      label: "Clue 3 — Semantic Category & Synonyms",
+                                      label: "Clue 3 — Natural Example Sentence",
                                       content: gameState.clue3Context,
-                                      icon: Icons.account_tree_outlined,
+                                      icon: Icons.short_text,
+                                      isExpanded: _expandedClueStep == 3,
                                       onUnlock: () {
+                                        setState(() {
+                                          _expandedClueStep = 3;
+                                        });
                                         ref.read(gameProvider.notifier).requestHint(3);
+                                      },
+                                      onToggleExpand: () {
+                                        setState(() {
+                                          _expandedClueStep = _expandedClueStep == 3 ? null : 3;
+                                        });
                                       },
                                     ),
                                   ],
                                 ),
                               ),
+
+                              // Striking Clue Card (if Option B activated)
+                              if (gameState.strikingClue != null && gameState.strikingClue!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1F1E1A),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFD5A84B), width: 1.2),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(Icons.auto_awesome_outlined, size: 16, color: Color(0xFFD5A84B)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "STRIKING CLUE (LIFELINE OPTION B)",
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.0,
+                                                  color: const Color(0xFFD5A84B),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                gameState.strikingClue!,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: const Color(0xFFF1EBDD),
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ).animate().fadeIn().slideY(begin: 0.1, end: 0.0),
+                                ),
 
                               // Masked Word Display
                               Padding(
@@ -397,14 +523,18 @@ class _ClueTile extends StatelessWidget {
   final String label;
   final String? content;
   final IconData icon;
+  final bool isExpanded;
   final VoidCallback onUnlock;
+  final VoidCallback onToggleExpand;
 
   const _ClueTile({
     required this.stepNumber,
     required this.label,
     required this.content,
     required this.icon,
+    required this.isExpanded,
     required this.onUnlock,
+    required this.onToggleExpand,
   });
 
   @override
@@ -415,23 +545,30 @@ class _ClueTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF181816),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: isUnlocked ? const Color(0xFFD5A84B).withOpacity(0.5) : const Color(0xFF2A2A26)),
+        border: Border.all(
+          color: isUnlocked
+              ? (isExpanded ? const Color(0xFFD5A84B) : const Color(0xFFD5A84B).withValues(alpha: 0.4))
+              : const Color(0xFF2A2A26),
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
-        onTap: isUnlocked ? null : onUnlock,
+        onTap: isUnlocked ? onToggleExpand : onUnlock,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 18, color: isUnlocked ? const Color(0xFFD5A84B) : const Color(0xFFA9A396)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: isUnlocked ? const Color(0xFFD5A84B) : const Color(0xFFA9A396),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
                       label,
                       style: GoogleFonts.inter(
                         fontSize: 11,
@@ -439,28 +576,45 @@ class _ClueTile extends StatelessWidget {
                         color: isUnlocked ? const Color(0xFFD5A84B) : const Color(0xFFA9A396),
                       ),
                     ),
-                    if (isUnlocked) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        content!,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFF1EBDD), height: 1.3),
+                  ),
+                  if (!isUnlocked)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A26),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
-                  ],
-                ),
+                      child: Text(
+                        "UNLOCK CLUE",
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFF1EBDD),
+                        ),
+                      ),
+                    )
+                  else
+                    Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: const Color(0xFFD5A84B),
+                    ),
+                ],
               ),
-              if (!isUnlocked)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A26),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+              if (isUnlocked && isExpanded) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 28.0),
                   child: Text(
-                    "UNLOCK CLUE",
-                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFFF1EBDD)),
+                    content!,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFFF1EBDD),
+                      height: 1.3,
+                    ),
                   ),
                 ),
+              ],
             ],
           ),
         ),

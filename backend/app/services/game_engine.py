@@ -10,7 +10,7 @@ from backend.app.models.game import (
 from backend.app.services.word_service import word_service
 from backend.app.services.level_service import level_service
 from backend.app.services.codex_service import codex_service
-from backend.app.models_db import DBUserHeartState, DBClassicProgress, DBModeStats, DBGameHistory, DBUserCodex
+from backend.app.models_db import DBUser, DBUserHeartState, DBClassicProgress, DBModeStats, DBGameHistory, DBUserCodex
 
 WITTY_LOSS_MESSAGES = [
     "Five words. Five defeats. At this point, the dictionary is starting to feel personally attacked.",
@@ -46,6 +46,12 @@ class GameSession:
         self.clue2_sentence: Optional[str] = None
         self.clue3_context: Optional[str] = None
 
+        # Word Lifeline tracking
+        self.lifeline_used: bool = False
+        self.lifeline_option_used: Optional[str] = None
+        self.striking_clue: Optional[str] = None
+        self.lifeline_unlocked_moment: bool = False
+
         self.start_time = time.time()
         self.witty_popup: Optional[WittyLossPopupPayload] = None
 
@@ -65,10 +71,10 @@ class GameSession:
     def process_guess(self, letter: str, db: Optional[Session] = None) -> GameStateResponse:
         letter = letter.lower()
         if self.status != "in_progress":
-            return self.to_response()
+            return self.to_response(db=db)
 
         if letter in self.guessed_letters:
-            return self.to_response()
+            return self.to_response(db=db)
 
         self.guessed_letters.add(letter)
 
@@ -101,34 +107,87 @@ class GameSession:
                 if db and self.user_id:
                     self._handle_db_game_end(won=False, db=db)
 
-        return self.to_response()
+        return self.to_response(db=db)
 
     def process_hint(self, hint_step: int = 1) -> tuple[int, str]:
         """Generates 3 progressive clues without ever revealing the secret word"""
         clue_text = ""
 
+        cat_str = self.word_data.get('category', 'General')
+        pos_str = self.word_data.get('part_of_speech', 'noun')
+        syns = self.word_data.get('synonyms', [])
+        syn_str = ", ".join(syns[:4]) if syns else "Direct vocabulary term"
+        origin_str = self.word_data.get('origin', 'Latin / English root')
+        usage_str = self.word_data.get('usage_context', f"Commonly used in {cat_str} contexts.")
+
+        raw_sent = self.word_data.get('example_sentence', f"In {cat_str.lower()}, experts frequently study the ___ in practical applications.")
+        pattern = re.compile(re.escape(self.secret_word), re.IGNORECASE)
+        masked_sent = pattern.sub("___", raw_sent)
+
         if hint_step == 1:
-            def_str = self.word_data.get('definition', 'A term in vocabulary.')
-            self.clue1_definition = f"Meaning: {def_str}"
+            self.clue1_definition = f"[{cat_str} · {pos_str}] Origin: {origin_str} · Synonyms: {syn_str}"
             clue_text = self.clue1_definition
 
         elif hint_step == 2:
-            raw_sent = self.word_data.get('example_sentence', f"In context, the term ___ plays an important role.")
-            # Ensure target secret word is masked as ___ in sentence
-            pattern = re.compile(re.escape(self.secret_word), re.IGNORECASE)
-            masked_sent = pattern.sub("___", raw_sent)
-            self.clue2_sentence = f"Context Sentence: \"{masked_sent}\""
+            self.clue2_sentence = f"Usage Context: {usage_str}"
             clue_text = self.clue2_sentence
 
         else:
-            cat_str = self.word_data.get('category', 'General')
-            pos_str = self.word_data.get('part_of_speech', 'word')
-            syns = self.word_data.get('synonyms', [])
-            syn_str = ", ".join(syns[:3]) if syns else "No direct synonyms"
-            self.clue3_context = f"Category & Context: [{cat_str} - {pos_str}] · Synonyms: {syn_str}"
+            self.clue3_context = f"Example Sentence: \"{masked_sent}\""
             clue_text = self.clue3_context
 
         return hint_step, clue_text
+
+    def process_lifeline(self, option: str, db: Optional[Session] = None) -> tuple[Optional[str], Optional[int], Optional[str], int]:
+        """Executes Word Lifeline: Option A (reveal_letter) or Option B (striking_clue)"""
+        if self.status != "in_progress":
+            raise ValueError("Game is not currently in progress.")
+
+        if self.mode == "classic" and self.level < 5:
+            raise ValueError("Word Lifeline unlocks at Classic Level 5.")
+
+        if self.lifeline_used:
+            raise ValueError("Word Lifeline has already been used in this round.")
+
+        rem_lifelines = 2
+        if db and self.user_id:
+            user = db.query(DBUser).filter(DBUser.id == self.user_id).first()
+            if not user or user.word_lifelines <= 0:
+                raise ValueError("No Word Lifelines remaining in inventory.")
+            user.word_lifelines -= 1
+            db.commit()
+            rem_lifelines = user.word_lifelines
+
+        if option == "reveal_letter":
+            unrevealed = [i for i in range(self.length) if i not in self.revealed_indices and self.secret_word[i] not in self.guessed_letters]
+            if not unrevealed:
+                raise ValueError("No unrevealed letter positions remaining.")
+
+            chosen_idx = random.choice(unrevealed)
+            self.revealed_indices.add(chosen_idx)
+            revealed_char = self.secret_word[chosen_idx]
+            self.lifeline_used = True
+            self.lifeline_option_used = "reveal_letter"
+
+            # Does NOT automatically win or count as a guess
+            return revealed_char, chosen_idx, None, rem_lifelines
+
+        elif option == "striking_clue":
+            clue = self.word_data.get('striking_clue')
+            if not clue:
+                clue = word_service.generate_striking_clue(
+                    self.secret_word,
+                    self.word_data.get('definition', 'A term in vocabulary'),
+                    self.word_data.get('part_of_speech', 'noun'),
+                    self.word_data.get('category', 'General')
+                )
+            self.striking_clue = clue
+            self.lifeline_used = True
+            self.lifeline_option_used = "striking_clue"
+            return None, None, clue, rem_lifelines
+
+        else:
+            raise ValueError("Invalid Lifeline option. Choose 'reveal_letter' or 'striking_clue'.")
 
     def _handle_db_game_end(self, won: bool, db: Session):
         if not self.user_id:
@@ -165,6 +224,13 @@ class GameSession:
                     classic_prog.current_level += 1
                     if classic_prog.current_level > classic_prog.highest_level:
                         classic_prog.highest_level = classic_prog.current_level
+
+                    # Award Level 5 milestone bonus Lifeline
+                    if classic_prog.current_level == 5:
+                        user = db.query(DBUser).filter(DBUser.id == self.user_id).first()
+                        if user:
+                            user.word_lifelines += 1
+                        self.lifeline_unlocked_moment = True
             else:
                 classic_prog.consecutive_losses += 1
                 if classic_prog.consecutive_losses >= 5:
@@ -195,12 +261,14 @@ class GameSession:
             mistakes=self.mistakes,
             hearts_remaining=self.lives_remaining,
             hints_used=hints_cnt,
+            word_lifelines_used=1 if self.lifeline_used else 0,
+            lifeline_option_used=self.lifeline_option_used,
             duration_seconds=int(time.time() - self.start_time)
         )
         db.add(history)
         db.commit()
 
-    def to_response(self) -> GameStateResponse:
+    def to_response(self, db: Optional[Session] = None) -> GameStateResponse:
         k_card = None
         if self.status in ["won", "lost"]:
             k_card = KnowledgeCard(
@@ -210,6 +278,14 @@ class GameSession:
                 synonyms=self.word_data.get('synonyms', []),
                 category=self.word_data.get('category', 'General')
             )
+
+        lifelines_cnt = 2
+        if db and self.user_id:
+            user = db.query(DBUser).filter(DBUser.id == self.user_id).first()
+            if user:
+                lifelines_cnt = user.word_lifelines
+
+        is_unlocked = (self.level >= 5) or (self.mode != "classic")
 
         return GameStateResponse(
             game_id=self.game_id,
@@ -228,6 +304,11 @@ class GameSession:
             clue1_definition=self.clue1_definition,
             clue2_sentence=self.clue2_sentence,
             clue3_context=self.clue3_context,
+            striking_clue=self.striking_clue,
+            lifeline_unlocked=is_unlocked,
+            word_lifelines=lifelines_cnt,
+            lifeline_used=self.lifeline_used,
+            lifeline_unlocked_moment=self.lifeline_unlocked_moment,
             knowledge_card=k_card,
             witty_loss_popup=self.witty_popup
         )
@@ -288,7 +369,6 @@ class GameEngine:
         else:
             word_data = word_service.select_word(difficulty=2, category=category, exclude_words=exclude_words)
 
-        # Record selected word in memory so it cannot repeat for this user/session
         if word_data and 'word' in word_data:
             self.session_played_words[anon_key].add(word_data['word'].lower())
 

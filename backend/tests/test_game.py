@@ -59,11 +59,25 @@ def test_request_hint_single_sentence():
     start_resp = client.post("/api/v1/game/start", json={"mode": "classic", "level": 1})
     game_id = start_resp.json()["game_id"]
 
-    hint_resp = client.post("/api/v1/game/hint", json={"game_id": game_id})
-    assert hint_resp.status_code == 200
-    data = hint_resp.json()
-    assert "clue_text" in data
-    assert len(data["clue_text"]) > 0
+    # Step 1: Profile & Synonyms
+    hint1_resp = client.post("/api/v1/game/hint", json={"game_id": game_id, "hint_step": 1})
+    assert hint1_resp.status_code == 200
+    data1 = hint1_resp.json()
+    assert "clue_text" in data1
+    assert "Origin:" in data1["clue_text"]
+
+    # Step 2: Usage Context
+    hint2_resp = client.post("/api/v1/game/hint", json={"game_id": game_id, "hint_step": 2})
+    assert hint2_resp.status_code == 200
+    data2 = hint2_resp.json()
+    assert "Usage Context:" in data2["clue_text"]
+
+    # Step 3: Legitimate Sentence
+    hint3_resp = client.post("/api/v1/game/hint", json={"game_id": game_id, "hint_step": 3})
+    assert hint3_resp.status_code == 200
+    data3 = hint3_resp.json()
+    assert "Example Sentence:" in data3["clue_text"]
+    assert "___" in data3["clue_text"]
 
 def test_real_profile():
     uid = str(uuid.uuid4())[:8]

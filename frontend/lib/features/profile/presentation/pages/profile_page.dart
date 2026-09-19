@@ -76,6 +76,7 @@ class ProfilePage extends ConsumerWidget {
           final hearts = profile['hearts_remaining'] ?? 5;
           final level = profile['classic_level'] ?? 1;
           final modeStats = Map<String, dynamic>.from(profile['mode_stats'] ?? {});
+          final wordLifelines = profile['word_lifelines'] ?? 2;
 
           return Center(
             child: ConstrainedBox(
@@ -119,6 +120,17 @@ class ProfilePage extends ConsumerWidget {
                               Text(
                                 "CLASSIC LEVEL $level",
                                 style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFF1EBDD)),
+                              ),
+                              const SizedBox(width: 12),
+                              Row(
+                                children: [
+                                  const Icon(Icons.flash_on, color: Color(0xFFD5A84B), size: 14),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    "LIFELINES: $wordLifelines",
+                                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFD5A84B)),
+                                  ),
+                                ],
                               ),
                               const SizedBox(width: 12),
                               Row(

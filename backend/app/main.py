@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
-from backend.app.database import engine, Base
+from backend.app.database import engine, Base, init_db
 from backend.app.routers import auth, game, profile, codex, multiplayer
 
-# Initialize Database Tables
-Base.metadata.create_all(bind=engine)
+# Initialize Database Tables & Migrations
+init_db()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
